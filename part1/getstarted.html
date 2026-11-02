@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Get Started | Printing Company</title>
+    <style>
+        * {box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: sans-serif;
+            background: white;
+            color: #1e1e1e;
+        }
+        header { 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        header a { color: #1e1e1e;text-decoration: none; font-weight: bold;}
+
+        main { max-width: 640px; margin: 40px auto;padding: 0 20px; }
+        h1 { font-size: clamp(1.8rem,5vw,2.4rem); margin: 0 0 8p; }
+        .intro { margin: 0 0 28px ; line-height: 1.5; }
+
+        form {
+            background: white;
+            padding: 28px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+        }
+        .drope-zone {
+            display: block;
+            border: 2px dashed #8a97b8;
+            border-radius: 10px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .drope-zone:hover,
+        .drope-zone.dragover { background: #eef2ee; border-color: #1e1e1e; }
+        .drope-zone input { display: none;}
+        .drope-zone strong {display: block; margin-bottom: 6px; }
+        .drope-zone small {color: #5b675b;}
+
+        .file-info {
+            display: none;
+            margin-top: 16px;
+            padding: 12px 16px;
+            background: #eef2fb;
+            border-radius: 8px;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        .file-info.show {display: flex; }
+        .file-info span {overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .file-info button {
+            background: none;
+            border: none;
+            color: #b3261e;
+            font-weight: bold;
+            cursor: pointer;
+
+        }
+        .error { color: #b3261e; margin: 12px 0 0; min-height: 1.2em; }
+
+        label.field { display: block; margin-top: 20px; font-weight: bold; }
+        select, input[type="number"] {
+            width: 100%;
+            margin-top: 6px;
+            padding: 10px;
+            border: 1px solid #c3cadb;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+        .submit-btn {
+            width: 100%;
+            margin-top: 28px;
+            padding: 14px;
+            background: gold;
+            color: #222;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.05rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .submit-btn:hover:not(:disabled) { background: #ffd633; }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .success {
+            display: none;
+            margin-top: 20px;
+            padding: 14px;
+            background: #e6f4ea;
+            color: #1b5e20;
+            border-radius: 8px;
+        }
+        .success.show { display: block; }
+
+    </style>
+</head>
+<body>
+    <header>
+        <a href="index.html">PrintingCompany</a>
+        <a href="index.html">Back to Home</a>
+    </header>
+
+    <main>
+        <h1>Upload your PDF</h1>
+        <p class="intro">Send us your file, choose your finish,and we'll tellyou when its raedy to collect.</p>
+
+        <form id="upload-form" novalidate>
+            <label class="drope-zone" id="drope-zone" for="PDF-input">
+                <input type="file" id="PDF-input" accept="application/PDF,.PDF">
+                <strong>Drag your PDF here or click to choose a file</strong>
+                <small>PDF only, up to 20  MB</small>
+            </label>
+            <div class="file-info" id="file-info">
+                <span id="file-name"></span>
+                <button type="button" id="remove-file">Remove</button>
+            </div>
+            <p class="error" id="error" role="alert"></p>
+
+            <label class="field">Paper size
+                <select id="size">
+                    <option>A4</option>
+                    <option>A3</option>
+                    <option>A2</option>
+                </select>
+
+            </label>
+            
+            <label class="field">finish
+                <select id="finish">
+                    <option>Standard</option>
+                    <option>?Glossy</option>
+                    <option>Matte</option>
+                </select>
+            </label>
+
+            <label class="field">Copies
+
+                <input type="number" id="copies" min="1" max="500" value="1">
+            </label>
+
+            <button type="submit" class="submit-btn" id="submit-btn" disabled>Send my file</button>
+
+            <div class="success" id="success" role="status"></div>
+
+        </form>
+    </main>
+
+    <script>
+        const Max_SIZE = 20*1024*1024;
+
+        const form          = document.getElementById('upload-form');
+        const dropezone         = document.getElementById('drope-zone');
+        const input    = document.getElementById('PDF-input');
+        const fileInfo         = document.getElementById('file-info');
+        const fileName          = document.getElementById('file-name');
+        const removeBtn          = document.getElementById('remove-file');
+        const errorBox          = document.getElementById('error');
+        const submitBtn          = document.getElementById('submit-btn');
+        const success          = document.getElementById('success');
+
+        let selectedFile = null;
+
+        function formatSize(bytes) {
+            return bytes < 1024*1024
+            ? (bytes/ 1024).toFixed(0) + 'KB'
+            : (bytes/(1024*1024)).toFixed(1) + 'MB';
+        }
+        function showError(message) {
+            errorBox.textContent = message;
+        }
+        function setFile(file) {
+            showError('');
+            success.classList.remove('show');
+
+            if(!file) return;
+
+            const isPdf = file.type === 'application/PDF' || file.name.toLowerCase().endsWith('.pdf');
+            if (!isPdf) {
+                showError('That file is not a PDF');
+                return;
+            }
+            if (file.size > Max_SIZE ) {
+                showError('that file is' + formatSize(file.size) +'the limit is 20 MB.');
+                return;
+            }
+
+            selectedFile = file;
+            fileName.textContent = file.name + '(' +formatSize(file.size) + ')';
+            fileInfo.classList.add('show');
+            submitBtn.disabled = false;
+        }
+
+        function clearFile() {
+            selectedFile = null;
+            input.value = '';
+            fileInfo.classList.remove('show');
+            submitBtn.disabled = true;
+        }
+
+        input.addEventListener('change', () => setFile(input.files[0]));
+
+        ['dragenter', 'dragover'].forEach(evt =>
+        dropZone.addEventListener(evt, e =>  {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+        })
+    );
+        ['dragleave', 'drop'].forEach(evt => 
+            dropZone.addEventListener(evt, e => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover')
+            })
+        );
+        dropZone.addEventListener('drop', e => setFile(e.dataTransfer.files[0]));
+        removeBtn.addEventListener('click', () => {clearFile(); showError('');});
+
+        form.addEventListener('submit', async e => {
+            e.preventDefault();
+            if (!selectedFile) {
+                showError('Please choose a PDF first.');
+                return;
+            }
+
+            const data = new FormData();
+            data.append('pdf', selectedFile);
+            data.append('size', document.getElementById('size').value);
+            data.append('finish', document.getElementById('finish').value);
+            data.append('copies', document.getElementById('copies').value);
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Sending...';
+
+            try {
+                const res = await fetch('/upload', {method: 'POST', body: data});
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error || 'Upload failed');
+
+
+                success.textContent = 'Thanks! We received' + selectedFile.name + '.';
+                success.classList.add('show');
+                clearFile();
+            } catch (err) {
+                showError(err.message || 'Something went wrong sending your file.Please try again');
+                submitBtn.disabled = false;
+            } finally {
+                submitBtn.textContent = 'Send my file';
+            }
+
+            
+        });
+    
+    </script>
+    
+</body>
+</html>
